@@ -1,0 +1,1950 @@
+{
+  "info": {
+    "_postman_id": "806635e5-a2fb-48f3-a14e-bcfdc0d80e79",
+    "name": "note-vault",
+    "description": "Note Vault API 接口集合。受保护接口的 Authorization 请求头直接填写登录返回的 Token，不使用 Bearer 前缀。",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "26809306"
+  },
+  "item": [
+    {
+      "name": "服务监控",
+      "description": "无需登录，用于检查 HTTP 进程存活状态和 PostgreSQL、Redis 依赖就绪状态。",
+      "item": [
+        {
+          "name": "存活检查",
+          "request": {
+            "description": "检查 HTTP 服务进程是否仍可接收和处理请求。无需 Authorization 请求头。",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{address}}/health/live",
+              "host": ["{{address}}"],
+              "path": ["health", "live"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "就绪检查",
+          "request": {
+            "description": "检查 PostgreSQL 和 Redis 是否可用；依赖不可用时返回 HTTP 503。无需 Authorization 请求头。",
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{address}}/health/ready",
+              "host": ["{{address}}"],
+              "path": ["health", "ready"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "授权",
+      "description": "登录获取 Token，退出时通过 Authorization 请求头提交原始 Token。",
+      "item": [
+        {
+          "name": "登录",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const response = pm.response.json();",
+                  "if (response.data && response.data.token) {",
+                  "    pm.collectionVariables.set('token', response.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "账号密码登录。登录成功后自动将响应 data.token 保存到当前集合变量 token，供其他受保护接口使用。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": \"lalala\",\n  \"password\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/auth/login",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "退出",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "删除当前 Token 对应的服务端会话。Authorization 头直接传原始 Token，不添加 Bearer 前缀。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "登录接口自动保存的原始 Token。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/auth/logout",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "auth", "logout"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "用户",
+      "description": "用户资料、分页查询、密码、状态及用户角色接口。用户资料、用户列表和用户详情响应均包含 roles 角色数组；除登录外均需在 Authorization 头中传入原始 Token。",
+      "item": [
+        {
+          "name": "修改本人密码",
+          "request": {
+            "description": "修改当前登录用户密码。新密码至少 8 位；修改成功后当前用户的已有会话会被撤销，请使用新密码重新登录。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldPassword\": \"123456\",\n  \"newPassword\": \"NewPassw0rd!2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users/password",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", "password"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "获取本人资料",
+          "request": {
+            "description": "根据当前登录会话获取本人资料，无需路径参数或请求体。响应中的 roles 返回当前用户关联的完整角色信息，没有角色时返回空数组。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/users/profile",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改本人资料",
+          "request": {
+            "description": "修改当前登录用户资料。可修改 account、name、sex、email、phone、avatarUrl；password、openId 和 status 不允许通过此接口修改。成功响应中的 roles 返回当前用户关联的完整角色信息。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"更新后的姓名\",\n  \"sex\": 1,\n  \"email\": \"postman.updated@example.com\",\n  \"phone\": \"13800000000\",\n  \"avatarUrl\": \"https://example.com/avatar.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users/profile",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", "profile"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询本周新增统计",
+          "request": {
+            "description": "查询当前登录用户本周新增的笔记、笔记簿、文件和收藏数量，以及四类资源各自的总记录数。本周按服务端本地时区从周一 00:00 起算；统计按创建时间计算，后续删除的记录仍属于本周新增记录。响应字段 weeklyNewNoteCount、weeklyNewNotebookCount、weeklyNewFileCount、weeklyNewBookmarkCount 表示本周新增数量，totalNoteCount、totalNotebookCount、totalFileCount、totalBookmarkCount 表示对应资源总数，不再返回聚合的 total 字段。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/users/statistics/weekly",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", "statistics", "weekly"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "管理员新增用户",
+          "request": {
+            "description": "创建用户。account、name、password 必填；password 为 8–72 位。status：1 正常、2 锁定、3 注销，省略时默认为 1。创建后默认关联普通用户角色，成功响应中的 roles 返回该用户当前关联的角色信息。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"account\": \"postman_user\",\n  \"name\": \"Postman 测试用户\",\n  \"password\": \"Postman123!\",\n  \"openId\": null,\n  \"sex\": 0,\n  \"email\": \"postman.user@example.com\",\n  \"phone\": \"13800000001\",\n  \"avatarUrl\": \"https://example.com/postman-user.png\",\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "分页查询用户",
+          "request": {
+            "description": "分页查询用户。支持 page、pageSize，以及 account、name、email、phone、status 筛选；account 模糊匹配时忽略大小写。status：1 正常、2 锁定、3 注销。每个用户数据中的 roles 返回当前关联的完整角色信息。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/users?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页条数，最大 100。"},
+                {"key": "account", "value": "", "description": "账号模糊筛选，忽略大小写。", "disabled": true},
+                {"key": "name", "value": "", "description": "姓名模糊筛选。", "disabled": true},
+                {"key": "email", "value": "", "description": "邮箱模糊筛选。", "disabled": true},
+                {"key": "phone", "value": "", "description": "手机号模糊筛选。", "disabled": true},
+                {"key": "status", "value": "1", "description": "用户状态：1 正常、2 锁定、3 注销。", "disabled": true}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询用户详情",
+          "request": {
+            "description": "根据路径参数 id 查询用户详情。响应中的 roles 返回该用户当前关联的完整角色信息，没有角色时返回空数组。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/users/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "用户 ID，必须是正整数。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "管理员修改用户资料",
+          "request": {
+            "description": "根据路径参数 id 修改用户资料。可修改 account、name、sex、email、phone、avatarUrl；password、openId 和 status 不允许通过资料接口修改。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"管理员更新的姓名\",\n  \"sex\": 1,\n  \"email\": \"user.updated@example.com\",\n  \"phone\": \"13800000002\",\n  \"avatarUrl\": \"https://example.com/user-updated.png\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改的用户 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改用户状态",
+          "request": {
+            "description": "status：1 正常、2 锁定、3 注销。注意：当前控制器实际使用 Authorization 对应的当前用户，尚未使用路径 id；状态为 2 或 3 时会撤销该用户的会话。默认示例使用 1，避免锁定当前测试账号。成功响应中的 roles 返回当前用户关联的完整角色信息。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users/:id/status",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", ":id", "status"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "路由要求的用户 ID；当前控制器暂未使用该值。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "注销用户（谨慎测试）",
+          "request": {
+            "description": "当前控制器通过 Authorization 对应的会话注销当前用户，尚未使用路径 id。请求成功后当前用户状态变为注销且会话被撤销；请只使用可丢弃的测试账号。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/users/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "路由要求的用户 ID；当前控制器暂未使用该值。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "分配用户角色",
+          "request": {
+            "description": "替换指定用户的角色关联。ids 是角色 ID 数组；传空数组可清除该用户的所有角色。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [1]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/users/:id/roles",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "users", ":id", "roles"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要分配角色的用户 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "角色",
+      "description": "角色列表、角色维护及用户角色、角色菜单关联接口。受保护接口使用 Authorization 原始 Token。",
+      "item": [
+        {
+          "name": "分页查询角色",
+          "request": {
+            "description": "分页查询角色。当前接口支持 page、pageSize 和 status 筛选；status：1 启用、2 禁用。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/roles?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页条数，最大 100。"},
+                {"key": "status", "value": "1", "description": "角色状态：1 启用、2 禁用。", "disabled": true}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "创建角色",
+          "request": {
+            "description": "创建角色。name 和 code 必填；status：1 启用、2 禁用，省略时默认为 1。请使用未被占用的角色编码。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 测试角色\",\n  \"code\": \"POSTMAN_TESTER\",\n  \"description\": \"Postman 接口测试使用\",\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/roles",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询角色详情",
+          "request": {
+            "description": "根据路径参数 id 查询角色详情。响应中的 menus 返回该角色已关联的完整菜单和权限资源信息，包含目录、页面、按钮和 API 类型；没有关联资源时返回空数组。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/roles/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "角色 ID，必须是正整数。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "更新角色",
+          "request": {
+            "description": "根据路径参数 id 更新角色。可部分提交 name、code、description、status；内置角色编码不可修改。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 更新角色\",\n  \"description\": \"更新后的角色说明\",\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/roles/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要更新的角色 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "更新角色状态",
+          "request": {
+            "description": "更新角色启用状态。status：1 启用、2 禁用。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/roles/:id/status",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles", ":id", "status"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改状态的角色 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除角色",
+          "request": {
+            "description": "根据路径参数 id 删除角色。若角色仍关联用户或其他数据，删除可能失败；请使用测试角色验证。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/roles/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的角色 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "分配角色菜单权限",
+          "request": {
+            "description": "替换指定角色关联的菜单和权限资源。ids 是菜单/权限资源 ID 数组；传空数组可清除全部关联。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ids\": [1]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/roles/:id/menus",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "roles", ":id", "menus"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要分配菜单权限的角色 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "菜单",
+      "description": "菜单树和菜单/权限资源维护接口。目录、页面、按钮、API 类型分别为 1、2、3、4；受保护接口使用 Authorization 原始 Token。",
+      "item": [
+        {
+          "name": "查询菜单树",
+          "request": {
+            "description": "查询菜单和权限资源树。当前支持 type、status 筛选；type：1 目录、2 页面、3 按钮、4 API；status：1 启用、2 禁用。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/menus/tree",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "menus", "tree"],
+              "query": [
+                {"key": "type", "value": "2", "description": "资源类型：1 目录、2 页面、3 按钮、4 API。", "disabled": true},
+                {"key": "status", "value": "1", "description": "资源状态：1 启用、2 禁用。", "disabled": true}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "创建菜单或权限资源",
+          "request": {
+            "description": "创建菜单或权限资源。name、code、type 必填；type：1 目录、2 页面、3 按钮、4 API。根节点 parentId 使用 0；type=4 时必须提供 httpMethod 和 apiPath。请使用未被占用的 code。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"parentId\": 0,\n  \"name\": \"Postman 接口权限示例\",\n  \"code\": \"POSTMAN_API_SAMPLE\",\n  \"type\": 4,\n  \"routePath\": null,\n  \"component\": null,\n  \"httpMethod\": \"GET\",\n  \"apiPath\": \"/api/v1/users\",\n  \"sortOrder\": 10,\n  \"visible\": false,\n  \"status\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/menus",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "menus"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "更新菜单或权限资源",
+          "request": {
+            "description": "根据路径参数 id 部分更新菜单或权限资源。仅需提交要修改的字段；API 类型资源的 httpMethod、apiPath 可沿用原值。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 更新菜单示例\",\n  \"sortOrder\": 20,\n  \"visible\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/menus/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "menus", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要更新的菜单或权限资源 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除菜单或权限资源",
+          "request": {
+            "description": "根据路径参数 id 删除菜单或权限资源。存在子节点时不能删除，请先处理子节点。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/menus/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "menus", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的菜单或权限资源 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "笔记簿",
+      "description": "当前登录用户的笔记簿管理接口。所有接口只操作认证上下文中用户自己的数据，不接收 ownerId；Authorization 直接传原始 Token。",
+      "item": [
+        {
+          "name": "分页查询笔记簿",
+          "request": {
+            "description": "分页查询当前用户的未删除笔记簿。支持 keyword、name、tag 和 status 筛选；status：1 正常、2 禁用。结果按 sortOrder、id 升序返回。每个笔记簿返回封面图标名 icon（未设置为空字符串）和笔记总数 noteCount（包含回收站，不含草稿）。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页条数，最大 100。"},
+                {"key": "keyword", "value": "工作", "description": "模糊匹配名称、标签和描述。", "disabled": true},
+                {"key": "name", "value": "工作", "description": "按笔记簿名模糊筛选，忽略大小写。", "disabled": true},
+                {"key": "tag", "value": "项目", "description": "按标签模糊筛选，忽略大小写。", "disabled": true},
+                {"key": "status", "value": "1", "description": "笔记簿状态：1 正常、2 禁用。", "disabled": true}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "创建笔记簿",
+          "request": {
+            "description": "为当前用户创建笔记簿。name 必填且同一用户下忽略大小写不能重复；name、icon（封面图标名）、tag 最长 100 字符，description 最长 1000 字符；status 只能为 1 或 2；sortOrder 不能小于 0。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 测试笔记簿\",\n  \"icon\": \"mdi:book-open\",\n  \"tag\": \"接口测试\",\n  \"description\": \"用于验证笔记簿接口的数据\",\n  \"status\": 1,\n  \"sortOrder\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询笔记簿详情",
+          "request": {
+            "description": "根据路径参数 id 查询当前用户自己的未删除笔记簿。其他用户的同 ID 资源同样按不存在处理。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "笔记簿 ID，必须是正整数。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改笔记簿",
+          "request": {
+            "description": "修改当前用户自己的笔记簿基本资料。可部分提交 name、icon（封面图标名）、tag、description；icon 提交空字符串可清除。排序和状态分别使用独立接口。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Postman 更新后的笔记簿\",\n  \"icon\": \"mdi:notebook-edit\",\n  \"tag\": \"更新测试\",\n  \"description\": \"更新后的笔记簿描述\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改的笔记簿 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改笔记簿排序",
+          "request": {
+            "description": "修改当前用户自己的笔记簿排序值。sortOrder 必填且不能小于 0；列表按该值升序排列。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sortOrder\": 20\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks/:id/sort",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks", ":id", "sort"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改排序的笔记簿 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改笔记簿状态",
+          "request": {
+            "description": "修改当前用户自己的笔记簿状态。status：1 正常、2 禁用；删除状态 3 只能通过删除接口设置。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks/:id/status",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks", ":id", "status"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改状态的笔记簿 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除笔记簿",
+          "request": {
+            "description": "软删除当前用户自己的笔记簿。删除前会统计该笔记簿下仍然存在的全部笔记；只要存在任何正常或回收站笔记就返回冲突错误，不执行删除。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notebooks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notebooks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的笔记簿 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "笔记",
+      "description": "当前登录用户的笔记接口。列表、详情、修改和移动只操作 status=1 的正常笔记；删除会移入回收站，恢复和永久删除使用回收站状态字段。更新和移动必须提交当前 version，版本过期时返回业务码 40902。",
+      "item": [
+        {
+          "name": "分页查询笔记",
+          "request": {
+            "description": "分页查询当前用户的正常笔记。支持按笔记簿、标题、标签和更新时间范围筛选；title 对标题进行模糊匹配。列表只返回摘要字段，不查询正文 content。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notes?page=1&pageSize=20&notebookId=1&title=接口&label=Go&updatedFrom=2026-09-01T00:00:00Z&updatedTo=2026-09-28T23:59:59Z",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页数量，最大 100。"},
+                {"key": "notebookId", "value": "1", "description": "可选，按所属笔记簿筛选。"},
+                {"key": "title", "value": "接口", "description": "可选，按笔记标题进行模糊匹配。"},
+                {"key": "label", "value": "Go", "description": "可选，按标签模糊筛选。"},
+                {"key": "updatedFrom", "value": "2026-09-01T00:00:00Z", "description": "可选，更新时间范围起点，使用 RFC3339。"},
+                {"key": "updatedTo", "value": "2026-09-28T23:59:59Z", "description": "可选，更新时间范围终点，使用 RFC3339。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "创建笔记",
+          "request": {
+            "description": "在当前用户自己的正常笔记簿中创建 Markdown 笔记。notebookId 和 title 必填；正文保存到 content，contentType 当前只支持 markdown。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notebookId\": 1,\n  \"title\": \"Go 接口开发记录\",\n  \"label\": \"Go\",\n  \"summary\": \"记录笔记接口的设计和实现。\",\n  \"coverUrl\": \"https://example.com/covers/go-note.png\",\n  \"content\": \"# Go 接口开发记录\\n\\n正文使用 Markdown 保存。\",\n  \"contentType\": \"markdown\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notes",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询笔记详情",
+          "request": {
+            "description": "查询当前用户自己的正常笔记详情。详情响应包含完整 Markdown 正文 content；不存在、属于其他用户或已经进入回收站时统一返回 404。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要查询的笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改笔记",
+          "request": {
+            "description": "修改当前用户自己的正常笔记。version 必须使用最近一次详情或写操作响应中的版本号；更新成功后服务端将 version 加一，版本过期返回 HTTP 409 和业务码 40902。移动笔记簿请使用独立移动接口。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Go 接口开发记录（已更新）\",\n  \"label\": \"Go,API\",\n  \"summary\": \"更新笔记摘要并验证乐观锁。\",\n  \"content\": \"# 更新后的正文\\n\\n提交时必须携带当前版本号。\",\n  \"contentType\": \"markdown\",\n  \"version\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改的笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "移动笔记到其他笔记簿",
+          "request": {
+            "description": "将当前用户自己的正常笔记移动到另一个属于当前用户且状态正常的笔记簿。notebookId 和 version 必填；成功后 version 加一，版本过期返回业务码 40902。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notebookId\": 2,\n  \"version\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id/move",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id", "move"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要移动的笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除笔记（移入回收站）",
+          "request": {
+            "description": "将当前用户自己的正常笔记移入回收站，不执行物理删除。服务端写入 deletedAt、deletedBy 和 purgeAt；重复删除已经在回收站中的笔记返回 HTTP 409。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要移入回收站的正常笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "恢复回收站笔记（笔记路径）",
+          "request": {
+            "description": "兼容 /notes/:id/restore 路径，行为与回收站目录下的恢复接口一致。原笔记簿可用时传空 JSON 对象；不可用时必须传入新的正常 notebookId。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id/restore",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id", "restore"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要恢复的回收站笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "永久删除回收站笔记（笔记路径）",
+          "request": {
+            "description": "兼容 /notes/:id/permanent 路径，行为与回收站目录下的永久删除接口一致。仅允许操作回收站笔记，重复调用按幂等成功处理。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/notes/:id/permanent",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "notes", ":id", "permanent"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要永久删除的回收站笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "回收站",
+      "description": "当前登录用户的回收站笔记接口。回收站复用 notes 表的 status、deletedAt、deletedBy 和 purgeAt 字段，不建立单独的回收站表。",
+      "item": [
+        {
+          "name": "分页查询回收站笔记",
+          "request": {
+            "description": "分页查询当前用户 status=2 的回收站笔记。响应返回 deletedAt、purgeAt 和 remainingRetentionDays，不返回正文 content。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/trash/notes?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "trash", "notes"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页数量，最大 100。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "恢复回收站笔记",
+          "request": {
+            "description": "恢复当前用户自己的回收站笔记。原笔记簿存在且状态正常时可传空 JSON 对象；原笔记簿不可用时必须指定新的正常笔记簿 notebookId。成功后清空 deletedAt、deletedBy、purgeAt，并恢复 status=1。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/trash/notes/:id/restore",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "trash", "notes", ":id", "restore"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要恢复的回收站笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "永久删除回收站笔记",
+          "request": {
+            "description": "物理删除当前用户自己的回收站笔记。正文及数据库记录一并删除；目标不存在时按幂等成功处理，正常笔记不能调用此接口。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/trash/notes/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "trash", "notes", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要永久删除的回收站笔记 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "草稿",
+      "description": "当前登录用户的草稿接口。保存和修改统一使用 PUT /drafts/:draftKey；新建笔记使用客户端生成且稳定的 draftKey，编辑已有笔记提交 noteId。自动保存不要求提交草稿 version；最终提交草稿时将内容保存到笔记并删除草稿，编辑已有笔记时提交正式笔记 noteVersion。",
+      "item": [
+        {
+          "name": "分页查询草稿",
+          "request": {
+            "description": "分页查询当前用户的草稿元数据。列表不返回正文 content。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/drafts?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "drafts"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页数量，最大 100。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "自动保存草稿",
+          "request": {
+              "description": "保存和修改统一使用此接口。首版正文写入 content，contentUri 预留给后续外部存储，不接受客户端提交。新建笔记按 ownerId + draftKey 定位；编辑已有笔记时提交 noteId，按 ownerId + noteId 定位。同一个编辑器始终复用 draftKey，不同新建操作使用不同 draftKey。自动保存不要求提交草稿 version。成功响应中的 id 用于查询、最终提交和删除。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"notebookId\": 1,\n  \"title\": \"待发布的 Go 草稿\",\n  \"label\": \"Go\",\n  \"content\": \"# 待发布的 Go 草稿\\n\\n自动保存内容。\",\n  \"contentType\": \"markdown\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/drafts/:draftKey",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "drafts", ":draftKey"],
+              "variable": [
+                {"key": "draftKey", "value": "postman-draft-001", "description": "客户端生成并在新建笔记编辑期间保持稳定的草稿键；后续自动保存继续使用同一个键。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询草稿详情",
+          "request": {
+            "description": "按数据库草稿 ID 查询当前用户自己的草稿详情，响应包含完整正文。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/drafts/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "drafts", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "自动保存响应中的草稿数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "提交草稿",
+          "request": {
+            "description": "在事务中锁定当前用户自己的最新草稿，将草稿内容保存到笔记；成功后删除草稿，不要求提交草稿 version。目标 notebookId 在自动保存草稿时指定。编辑已有笔记时还必须附加编辑开始时读取的正式笔记 noteVersion；新建笔记时不传 noteVersion。本请求示例按新建笔记填写。任一步骤失败都会回滚并保留草稿。成功响应为正式笔记详情。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/drafts/:id/submit",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "drafts", ":id", "submit"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要发布的草稿数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除草稿",
+          "request": {
+            "description": "永久删除当前用户自己的草稿，不影响已发布的正式笔记。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/drafts/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "drafts", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的草稿数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "收藏夹",
+      "description": "当前登录用户的收藏管理接口。所有接口只访问认证上下文中用户自己的数据，不接收 ownerId；同一用户的 href 不能重复。收藏链接和图标地址仅允许 HTTP 或 HTTPS URL。",
+      "item": [
+        {
+          "name": "分页查询收藏",
+          "request": {
+            "description": "分页查询当前用户自己的收藏。支持 topic（标题模糊匹配）、label（标签模糊匹配）、favorite（重点收藏状态）以及 createdFrom/createdTo（RFC3339 创建时间范围）筛选；结果按更新时间倒序。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/bookmarks?page=1&pageSize=20&topic=&label=&favorite=&createdFrom=&createdTo=",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "bookmarks"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页条数，最大 100。"},
+                {"key": "topic", "value": "", "description": "按收藏标题进行模糊筛选。"},
+                {"key": "label", "value": "", "description": "按收藏标签进行模糊筛选。"},
+                {"key": "favorite", "value": "", "description": "重点收藏筛选，true 或 false。"},
+                {"key": "createdFrom", "value": "", "description": "创建时间起点，RFC3339 格式。"},
+                {"key": "createdTo", "value": "", "description": "创建时间终点，RFC3339 格式。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "创建收藏",
+          "request": {
+            "description": "创建当前用户自己的收藏。href 必填且必须是 HTTP 或 HTTPS URL；后端自动抓取 icon，失败时留空，前端无需提交；topic、label 和 description 可选；favorite 未提供时默认为 true。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Go 官方文档\",\n  \"label\": \"开发\",\n  \"href\": \"https://go.dev/doc/\",\n  \"favorite\": true,\n  \"description\": \"Go 语言官方文档\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/bookmarks",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "bookmarks"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询收藏详情",
+          "request": {
+            "description": "根据路径参数 id 查询当前用户自己的收藏；其他用户的同 ID 收藏按不存在处理。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/bookmarks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "bookmarks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要查询的收藏数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "修改收藏",
+          "request": {
+            "description": "部分修改当前用户自己的收藏，只提交需要修改的字段。提交 href 时后端自动更新 icon；抓取失败时图标留空；不提交 href 和 icon 时保持原图标。href 须是 HTTP 或 HTTPS URL。",
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"topic\": \"Go 文档\",\n  \"favorite\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/bookmarks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "bookmarks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要修改的收藏数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除收藏",
+          "request": {
+            "description": "永久删除当前用户自己的收藏记录。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/bookmarks/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "bookmarks", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的收藏数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "文件",
+      "description": "当前登录用户的文件管理接口。文件可通过 multipart/form-data 或 JSON Base64 图片上传；服务端根据真实内容检测 MIME 类型，使用随机 object_key 保存文件，不使用客户端文件名作为存储路径。",
+      "item": [
+        {
+          "name": "上传文件",
+          "request": {
+            "description": "上传当前用户的文件。允许的 MIME 类型、扩展名和最大文件大小由服务端 storage 配置控制；不要手动设置 Content-Type，让 Postman 自动生成 multipart boundary。上传成功后会写入审计日志。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "",
+                  "description": "需要上传的本地文件。"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/files",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "上传 Base64 图片",
+          "request": {
+            "description": "使用 JSON 上传 Base64 图片。base64 字段支持纯 Base64 编码，也支持 data:image/png;base64,... 格式；服务端会校验真实图片内容、MIME 类型、扩展名和文件大小。上传成功后会写入审计日志。",
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fileName\": \"image.png\",\n  \"base64\": \"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{address}}/api/v1/files/base64",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files", "base64"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "分页查询文件",
+          "request": {
+            "description": "分页查询当前用户自己的正常文件，可按原始文件名模糊匹配和 MIME 类型精确筛选。响应返回文件大小、类型、校验和和时间等元数据。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/files?page=1&pageSize=20&fileName=&fileType=",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，从 1 开始。"},
+                {"key": "pageSize", "value": "20", "description": "每页数量，最大 100。"},
+                {"key": "fileName", "value": "", "description": "可选，按文件名模糊筛选。"},
+                {"key": "fileType", "value": "", "description": "可选，按 MIME 类型精确筛选，例如 image/png。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "查询文件详情",
+          "request": {
+            "description": "按文件 ID 查询当前用户自己的正常文件元数据，不返回文件对象键。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/files/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "上传成功响应中的文件数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "预览文件",
+          "request": {
+            "description": "返回正常状态文件内容。文件列表和详情响应中的 fileUrl 指向此地址；请求无需携带 Token。任何持有 publicKey 的客户端都可以访问该地址，请勿将其用于敏感文件。",
+            "method": "GET",
+            "url": {
+              "raw": "{{address}}/api/v1/files/public/:publicKey/preview",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files", "public", ":publicKey", "preview"],
+              "variable": [
+                {"key": "publicKey", "value": "替换为 fileUrl 中的 publicKey", "description": "文件公开访问标识，不是文件数据库 ID；上传、列表或详情响应的 fileUrl 中已包含该标识。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "下载文件",
+          "request": {
+            "description": "返回当前用户自己的文件内容，并通过 Content-Disposition: attachment 提示客户端下载保存；请求需要携带原始 Token。",
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/files/:id/download",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files", ":id", "download"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要下载的文件数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "删除文件",
+          "request": {
+            "description": "删除当前用户自己的文件对象，并将文件元数据标记为已删除；不会物理删除 files 表记录。对象删除和元数据更新均成功后会写入审计日志。",
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "{{token}}",
+                "type": "text",
+                "description": "原始 Token，不使用 Bearer 前缀。"
+              }
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/files/:id",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "files", ":id"],
+              "variable": [
+                {"key": "id", "value": "1", "description": "需要删除的文件数据库 ID。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "审计日志",
+      "description": "仅管理员可查询；审计记录不提供修改、删除接口。",
+      "item": [
+        {
+          "name": "分页查询审计日志",
+          "request": {
+            "description": "按账号快照、操作时间范围、来源 IP、操作关键字筛选；时间参数使用带时区的 RFC3339 格式。所有查询条件均可省略。",
+            "method": "GET",
+            "header": [
+              {"key": "Authorization", "value": "{{token}}", "type": "text", "description": "登录返回的原始 Token，不使用 Bearer。"}
+            ],
+            "url": {
+              "raw": "{{address}}/api/v1/audit-logs?page=1&pageSize=20",
+              "host": ["{{address}}"],
+              "path": ["api", "v1", "audit-logs"],
+              "query": [
+                {"key": "page", "value": "1", "description": "页码，默认 1。"},
+                {"key": "pageSize", "value": "20", "description": "每页条数，默认 20，最大 100。"},
+                {"key": "operatorAccount", "value": "lalala", "disabled": true, "description": "操作者账号，精确匹配。"},
+                {"key": "operatedFrom", "value": "2026-09-01T00:00:00+08:00", "disabled": true, "description": "操作时间起点，含。"},
+                {"key": "operatedTo", "value": "2026-09-30T23:59:59+08:00", "disabled": true, "description": "操作时间终点，含。"},
+                {"key": "ip", "value": "127.0.0.1", "disabled": true, "description": "合法 IPv4 或 IPv6，精确匹配。"},
+                {"key": "operation", "value": "登录", "disabled": true, "description": "操作文本关键字，模糊匹配。"}
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "address",
+      "value": "http://localhost:8080",
+      "type": "string",
+      "description": "服务地址；按实际运行环境修改。"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "运行登录请求后自动写入响应中的原始 Token。"
+    }
+  ]
+}

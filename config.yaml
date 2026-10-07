@@ -1,0 +1,98 @@
+# 服务器配置
+server:
+  host: "0.0.0.0"
+  port: 8080
+  readTimeout: "15s"
+  writeTimeout: "15s"
+  shutdownTimeout: "10s"
+  healthCheckTimeout: "3s"
+  maxBodyBytes: 16777216
+
+# 前端静态资源配置
+web:
+  distDir: "dist"
+
+# 跨域配置
+cors:
+  allowedOrigins:
+    - "*"
+  allowedMethods:
+    - "GET"
+    - "POST"
+    - "PUT"
+    - "PATCH"
+    - "DELETE"
+    - "OPTIONS"
+  allowedHeaders:
+    - "Authorization"
+    - "Content-Type"
+    - "X-Request-ID"
+  exposedHeaders:
+    - "X-Request-ID"
+  allowCredentials: false
+  maxAge: "12h"
+
+# 数据库配置
+database:
+  dsn: "host=127.0.0.1 user=postgres password=postgres dbname=main port=5432 sslmode=disable search_path=note-vault"
+  pool:
+    maxIdleConns: 10
+    maxOpenConns: 100
+    connMaxLifetime: "1h"
+    connMaxIdleTime: "30m"
+
+# 服务端会话配置
+session:
+  expireHours: 24
+  tokenBytes: 32
+  # 是否检查ip绑定
+  bindIP: true
+
+# 鉴权配置
+auth:
+  trustedProxies: []
+  maxSessions: 1
+
+# Redis配置
+redis:
+  addr: "127.0.0.1:6379"
+  password: "redis"
+  db: 10
+  poolSize: 10
+  minIdleConns: 5
+  maxRetries: 3
+  operationTimeout: "3s"
+
+# 文件存储配置
+storage:
+  type: "local"
+  basePath: "./data"
+  maxFileSize: 10485760
+  allowedMimeTypes:
+    - "image/jpeg"
+    - "image/png"
+    - "image/gif"
+    - "image/webp"
+    - "application/pdf"
+    - "text/plain"
+    - "text/markdown"
+  allowedExtensions:
+    - ".jpg"
+    - ".jpeg"
+    - ".png"
+    - ".gif"
+    - ".webp"
+    - ".pdf"
+    - ".txt"
+    - ".md"
+
+# 回收站配置
+trash:
+  retentionDays: 30
+  cleanupInterval: "24h"
+
+# 日志配置
+log:
+  level: "info"
+  format: "console"
+  output: "stdout"
